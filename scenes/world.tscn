@@ -83,10 +83,11 @@ shadow_enabled = true
 
 [node name="player" parent="." instance=ExtResource("5_mehtf")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, 0)
+floor_block_on_wall = false
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="player_ui" type="CanvasLayer" parent="."]
 
-[node name="HUD" type="Control" parent="CanvasLayer"]
+[node name="HUD" type="Control" parent="player_ui"]
 layout_mode = 3
 anchors_preset = 0
 offset_left = -2.0
@@ -95,14 +96,14 @@ offset_right = 1150.0
 offset_bottom = 649.0
 script = ExtResource("6_5wdp2")
 
-[node name="fps_counter" type="Label" parent="CanvasLayer/HUD"]
+[node name="fps_counter" type="Label" parent="player_ui/HUD"]
 layout_mode = 0
 offset_right = 75.0
 offset_bottom = 40.0
 label_settings = SubResource("LabelSettings_hawd5")
 vertical_alignment = 1
 
-[node name="ProgressBar" type="ProgressBar" parent="CanvasLayer/HUD"]
+[node name="ProgressBar" type="ProgressBar" parent="player_ui/HUD"]
 layout_mode = 0
 offset_left = 11.0
 offset_top = 478.0

@@ -17,8 +17,8 @@ var current_speed = 5.0
 var jump_velocity = 4.2
 var jumps = 0
 var jumps_max = 2
-var can_change_jump_direction = false
 var initial_jump_direction = Vector3.ZERO
+var last_input_direction = Vector3.ZERO
 
 # States
 var running = false
@@ -43,6 +43,7 @@ var dash_timer = 0.0
 var dash_timer_max = 1.0
 var dash_vector = Vector2.ZERO
 var is_dashing = false
+var has_dashed = false
 
 # Dashing Sequence vars
 var key_sequence = []
@@ -113,10 +114,7 @@ func _physics_process(delta):
 	# Reset scene when character is >= -20 Y-Axis
 	if position.y < -20:
 		get_tree().reload_current_scene()
-
-	# Change second jump direction
-	change_second_jump_direction()
-
+	
 	# Crouching
 	if Input.is_action_pressed("crouch") && !is_dashing && !is_on_floor():
 		handle_crouching()
@@ -147,12 +145,13 @@ func character_movement(direction):
 				animation_player.play("melee_running", 0.3)
 		
 			#visuals.look_at(position + direction)
-			if is_on_floor() or can_change_jump_direction:
+			if is_on_floor():
 				velocity.x = direction.x * current_speed
 				velocity.z = direction.z * current_speed
 		# Dashing
 		else:
 			if !is_on_floor():
+				has_dashed = true
 				velocity.x = direction.x * dash_timer * dash_speed_air
 				velocity.z = direction.z * dash_timer * dash_speed_air
 			else:
@@ -163,7 +162,7 @@ func character_movement(direction):
 	else:
 		if is_on_floor() && !is_dashing:
 			animation_player.play("melee_idle")
-		if is_on_floor() or can_change_jump_direction:
+		if is_on_floor():
 			velocity.x = move_toward(velocity.x, 0, current_speed)
 			velocity.z = move_toward(velocity.z, 0, current_speed)
 
@@ -175,20 +174,18 @@ func handle_character_jumping(input_dir):
 			velocity.y = jump_velocity
 			jumps += 1
 			animation_player.play("melee_jump")
-
+			last_input_direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 			# Handle 2nd jump if no direction is applied
 			if jumps == 1:
 				initial_jump_direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
 			elif jumps == 2 and input_dir == Vector2.ZERO:
-				velocity.x = initial_jump_direction.x * jump_velocity
-				velocity.z = initial_jump_direction.z * jump_velocity
-
-func change_second_jump_direction():
-	if jumps == 1 && Input.is_action_just_pressed("jump"):
-		can_change_jump_direction = true
-	elif jumps >= 1:
-		can_change_jump_direction = false
+				if initial_jump_direction != Vector3.ZERO && !has_dashed:
+					velocity.x = initial_jump_direction.x * jump_velocity
+					velocity.z = initial_jump_direction.z * jump_velocity
+				elif last_input_direction != Vector3.ZERO:
+					velocity.x = last_input_direction.x * jump_velocity
+					velocity.z = last_input_direction.z * jump_velocity
 
 
 # ------------------ Handle Crouching STARTS ------------------ #
