@@ -183,10 +183,10 @@ func handle_crouching():
 
 
 # ----------------- Handle Dashing STARTS ----------------- #
-func handle_dashing(input_dir, direction, delta):
+func handle_dashing(input_dir, _direction, delta):
 
 	if is_dashing:
-		direction = (transform.basis * Vector3(dash_vector.x, 0, dash_vector.y)).normalized()
+		_direction = (transform.basis * Vector3(dash_vector.x, 0, dash_vector.y)).normalized()
 
 		# Handle dashing sequence
 	for sequence in sequences.values():
