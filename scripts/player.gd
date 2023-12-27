@@ -14,21 +14,31 @@ extends CharacterBody3D
 var current_speed = 5.0
 
 # Jumping vars
-var jump_velocity = 4.5
+var jump_velocity = 4.2
 var jumps = 0
 var jumps_max = 2
 var can_change_jump_direction = false
 var initial_jump_direction = Vector3.ZERO
 
+# States
+var running = false
+var crouching = false
+var jumping = false
+var falling = false
+var shooting = false
+var melee_attacking = false 
+var aiming = false
+
 # Movement keys
-var actions_to_check = ["move_left", "move_right", "move_forwards", "move_backwards"]
+var movement_actions = ["move_left", "move_right", "move_forwards", "move_backwards"]
 
 # Mouse Sensitivity vars
 var mouse_sens_horizontal = 0.35
 var mouse_sens_vertical = 0.35
 
 # Dashing vars
-var dash_speed = 10.0
+var dash_speed_air = 10.0
+var dash_speed_ground = 40.0
 var dash_timer = 0.0
 var dash_timer_max = 1.0
 var dash_vector = Vector2.ZERO
@@ -69,7 +79,7 @@ func _input(event):
 
 	# Handle key sequence | 2 inputs max
 	if event is InputEventKey:
-		for action in actions_to_check:
+		for action in movement_actions:
 			if Input.is_action_just_pressed(action):
 				key_sequence.append(event.keycode)
 				timer.start()
@@ -131,18 +141,23 @@ func _physics_process(delta):
 func character_movement(direction):
 	# Moving
 	if direction:
+		# Not Dashing
 		if !is_dashing:
 			if is_on_floor():
 				animation_player.play("melee_running", 0.3)
 		
 			#visuals.look_at(position + direction)
-			if is_on_floor() or can_change_jump_direction && !is_dashing:
+			if is_on_floor() or can_change_jump_direction:
 				velocity.x = direction.x * current_speed
 				velocity.z = direction.z * current_speed
-
+		# Dashing
 		else:
-			velocity.x = direction.x * dash_timer * dash_speed
-			velocity.z = direction.z * dash_timer * dash_speed
+			if !is_on_floor():
+				velocity.x = direction.x * dash_timer * dash_speed_air
+				velocity.z = direction.z * dash_timer * dash_speed_air
+			else:
+				velocity.x = direction.x * dash_timer * dash_speed_ground
+				velocity.z = direction.z * dash_timer * dash_speed_ground
 
 	# Idle
 	else:
@@ -166,8 +181,8 @@ func handle_character_jumping(input_dir):
 				initial_jump_direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
 			elif jumps == 2 and input_dir == Vector2.ZERO:
-				velocity.x = initial_jump_direction.x * current_speed
-				velocity.z = initial_jump_direction.z * current_speed
+				velocity.x = initial_jump_direction.x * jump_velocity
+				velocity.z = initial_jump_direction.z * jump_velocity
 
 func change_second_jump_direction():
 	if jumps == 1 && Input.is_action_just_pressed("jump"):
