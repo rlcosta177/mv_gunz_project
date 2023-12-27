@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="Weapon_Resource" load_steps=2 format=3 uid="uid://bqxxrveu5uivq"]
+
+[sub_resource type="GDScript" id="GDScript_kpxx1"]
+script/source = "extends Resource
+
+class_name Weapon_Resource
+
+@export var weapon_name: String
+@export var activate_anim: String
+@export var shoot_anim: String
+@export var reload_anim: String
+
+@export var current_ammo: int
+@export var resserve_ammo: int
+@export var magazine: int
+@export var max_ammo: int
+
+@export var auto_fire: bool
+"
+
+[resource]
+script = SubResource("GDScript_kpxx1")
+weapon_name = "shotgun_1"
+activate_anim = "shotgun_1_Activate"
+shoot_anim = "shotgun_1_shoot"
+reload_anim = "shotgun_1_reload"
+current_ammo = 5
+resserve_ammo = 15
+magazine = 5
+max_ammo = 0
+auto_fire = false

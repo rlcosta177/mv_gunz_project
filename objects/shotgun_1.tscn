@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://dfny41bc7wm87"]
+
+[ext_resource type="PackedScene" uid="uid://drgnv5ra0vvsh" path="res://assets/materials/shotgun.glb" id="1_fhfts"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_t4wud"]
+albedo_color = Color(0.643137, 0.0705882, 0.054902, 1)
+
+[node name="shotgun" instance=ExtResource("1_fhfts")]
+
+[node name="shotgun" parent="." index="0"]
+material_override = SubResource("StandardMaterial3D_t4wud")
