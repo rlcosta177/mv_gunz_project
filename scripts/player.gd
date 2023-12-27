@@ -42,8 +42,8 @@ var mouse_sens_vertical = 0.35
 
 # Dashing vars
 var dash_speed_air = 15.0
-var dash_speed_ground = 40.0
-var dash_timer = 0.0
+var dash_speed_ground = 30.0
+var dash_timer = 0.5
 var dash_timer_max = 1.0
 var dash_vector = Vector2.ZERO
 var dash_fall_speed = 1.0
@@ -64,7 +64,7 @@ var sequences = {
 # Camera rotation
 var hasRotated = false
 
-# Get the gravity from the project settings to be synced with RigidBody nodes.
+# Get gravit from the project settings
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 func _ready():
@@ -81,9 +81,8 @@ func _input(event):
 
 	if Input.is_action_just_pressed("action_1"):
 		is_dashing = false
-		print("can dash mid air")
-		if has_air_dashed:
-			print("DASH SLASH CANCEL")
+		if jumps < 2:
+			print("can dash mid air")
 
 	# Quit game on ESC
 	if Input.is_action_just_pressed("settings"):
@@ -125,6 +124,10 @@ func _input(event):
 		weapon_2.show()
 
 func _physics_process(delta):
+
+	if animation_player.current_animation == "melee_attack_idle" && is_dashing:
+		print("DASH SLASH CANCEL")
+
 	# Add the gravity.
 	apply_gravity(delta)
 
@@ -260,7 +263,7 @@ func reset_variables():
 
 # ----------------- Handle Gravity STARTS ----------------- #
 func apply_gravity(delta):
-	if not is_on_floor():
+	if not is_on_floor() && !is_dashing:
 		velocity.y -= gravity * delta
 
 
