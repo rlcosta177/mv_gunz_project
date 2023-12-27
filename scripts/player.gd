@@ -17,7 +17,7 @@ extends CharacterBody3D
 var current_speed = 5.0
 
 # Jumping vars
-var jump_velocity = 8
+var jump_velocity = 5.0
 var jumps = 0
 var jumps_max = 2
 var initial_jump_direction = Vector3.ZERO
@@ -78,6 +78,13 @@ func _ready():
 	#weapon_3.hide()
 
 func _input(event):
+
+	if Input.is_action_just_pressed("action_1"):
+		is_dashing = false
+		print("can dash mid air")
+		if has_air_dashed:
+			print("DASH SLASH CANCEL")
+
 	# Quit game on ESC
 	if Input.is_action_just_pressed("settings"):
 		get_tree().quit()
@@ -161,7 +168,6 @@ func handle_character_movement(direction):
 		else:
 			if !is_on_floor():
 				has_air_dashed = true
-				velocity.y = -dash_fall_speed
 				velocity.x = direction.x * dash_timer * dash_speed_air
 				velocity.z = direction.z * dash_timer * dash_speed_air
 			else:
@@ -172,25 +178,25 @@ func handle_character_movement(direction):
 	else:
 		if is_on_floor() && !is_dashing and animation_player.current_animation != "melee_attack_idle":
 			animation_player.play("melee_idle")
-		if is_on_floor():
+		if is_on_floor() && !is_dashing:
 			velocity.x = move_toward(velocity.x, 0, current_speed)
 			velocity.z = move_toward(velocity.z, 0, current_speed)
 
 
 # ----------------- Handle Jumping START ---------- #
 func handle_character_jumping(input_dir):
-		if Input.is_action_just_pressed("jump") && !is_dashing:
+		if jump_buffer_timer > 0 && !is_dashing && jumps < jumps_max:
 			if !has_air_dashed:
 				print("jumped")
 				jump_buffer_timer = 0
-				velocity.y = jump_velocity
+				velocity.y = jump_velocity + 4.5
 				jumps += 1
 				animation_player.play("melee_jump")
 
 			elif has_air_dashed && animation_player.current_animation == "melee_attack_idle":
-				print("jump cancel")
+				print("JUMP SLASH CANCEL")
 				jump_buffer_timer = 0
-				velocity.y = jump_velocity
+				velocity.y = jump_velocity + 4
 				jumps += 1
 				has_air_dashed = false
 
@@ -203,14 +209,10 @@ func handle_character_jumping(input_dir):
 					velocity.x = initial_jump_direction.x * jump_velocity
 					velocity.z = initial_jump_direction.z * jump_velocity
 
-				#elif last_input_direction != Vector3.ZERO:
-					#velocity.x = last_input_direction.x * jump_velocity
-					#velocity.z = last_input_direction.z * jump_velocity
-					#print(last_input_direction)
 
 func handle_jump_buffer(delta):
 	if Input.is_action_just_pressed("jump"):
-		jump_buffer_timer = 0.35
+		jump_buffer_timer = 0.25
 	jump_buffer_timer -= delta
 
 
@@ -222,9 +224,10 @@ func handle_character_dashing(input_dir, _direction, delta):
 
 		# Handle dashing sequence
 	for sequence in sequences.values():
-		if key_sequence == sequence && !is_dashing:
-			start_dashing(input_dir)
-			key_sequence.clear()
+		if key_sequence == sequence:
+			if !is_dashing:
+				start_dashing(input_dir)
+				key_sequence.clear()
 		elif is_dashing:
 			update_dash_timer(delta)
 			if dash_timer <= 0.5:
