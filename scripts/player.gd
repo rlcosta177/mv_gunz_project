@@ -14,11 +14,12 @@ extends CharacterBody3D
 var current_speed = 5.0
 
 # Jumping vars
-var jump_velocity = 4.2
+var jump_velocity = 5
 var jumps = 0
 var jumps_max = 2
 var initial_jump_direction = Vector3.ZERO
 var last_input_direction = Vector3.ZERO
+var jump_buffer_timer = 0.0
 
 # States
 var running = false
@@ -55,6 +56,9 @@ var sequences = {
 	"dash_backwards": [83, 83]
 }
 
+# Camera rotation
+var hasRotated = false
+
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
@@ -71,7 +75,15 @@ func _input(event):
 	# Quit game on ESC
 	if Input.is_action_just_pressed("settings"):
 		get_tree().quit()
-	
+
+	# Handle front view
+	if Input.is_action_just_pressed("front_view") and !hasRotated:
+		camera_mount.rotate_y(-deg_to_rad(180))
+		hasRotated = true
+	elif Input.is_action_just_released("front_view") and hasRotated:
+		camera_mount.rotate_y(-deg_to_rad(180))
+		hasRotated = false
+
 	# Handle mouse movement
 	if event is InputEventMouseMotion: 
 		rotate_y(-deg_to_rad(event.relative.x * mouse_sens_horizontal)) 
@@ -79,7 +91,7 @@ func _input(event):
 		camera_mount.rotation.x = clamp(camera_mount.rotation.x, deg_to_rad(-60), deg_to_rad(60))
 
 	# Handle key sequence | 2 inputs max
-	if event is InputEventKey:
+	if event is InputEventKey and !is_dashing:
 		for action in movement_actions:
 			if Input.is_action_just_pressed(action):
 				key_sequence.append(event.keycode)
@@ -101,33 +113,30 @@ func _input(event):
 
 func _physics_process(delta):
 
-		# Handle character direction
+	# Handle character direction
 	var input_dir = Input.get_vector("move_left", "move_right", "move_forwards", "move_backwards")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
 	# Add the gravity.
 	apply_gravity(delta)
 
-	# Reset Variables
 	reset_variables()
 	
 	# Reset scene when character is >= -20 Y-Axis
 	if position.y < -20:
 		get_tree().reload_current_scene()
-	
-	# Crouching
+
+	# Crouching | PUT THIS INSIDE handle_character_movement() function
 	if Input.is_action_pressed("crouch") && !is_dashing && !is_on_floor():
 		handle_crouching()
 
 	# Standing:
 	elif !ray_cast_3d.is_colliding() && jumps <= 1:
-		handle_dashing(input_dir, direction, delta)
+		handle_character_dashing(input_dir, direction, delta)
 
-	# Handle Movement logic
-	character_movement(direction)
-
-	# Handle Jumping logic
+	handle_character_movement(direction)
 	handle_character_jumping(input_dir)
+	handle_jump_buffer(delta)
 
 	move_and_slide()
 
@@ -136,18 +145,17 @@ func _physics_process(delta):
 
 
 # ----------------- Handle Movement STARTS ----------------- #
-func character_movement(direction):
+func handle_character_movement(direction):
 	# Moving
 	if direction:
-		# Not Dashing
+		# Running
 		if !is_dashing:
 			if is_on_floor():
 				animation_player.play("melee_running", 0.3)
-		
-			#visuals.look_at(position + direction)
-			if is_on_floor():
 				velocity.x = direction.x * current_speed
 				velocity.z = direction.z * current_speed
+				#visuals.look_at(position + direction)
+
 		# Dashing
 		else:
 			if !is_on_floor():
@@ -170,7 +178,8 @@ func character_movement(direction):
 # ----------------- Handle Jumping START ---------- #
 func handle_character_jumping(input_dir):
 	if is_on_floor() or jumps < jumps_max:
-		if Input.is_action_just_pressed("jump"):
+		if jump_buffer_timer > 0 && !is_dashing:
+			jump_buffer_timer = 0
 			velocity.y = jump_velocity
 			jumps += 1
 			animation_player.play("melee_jump")
@@ -187,6 +196,10 @@ func handle_character_jumping(input_dir):
 					velocity.x = last_input_direction.x * jump_velocity
 					velocity.z = last_input_direction.z * jump_velocity
 
+func handle_jump_buffer(delta):
+	if Input.is_action_just_pressed("jump"):
+		jump_buffer_timer = 0.25
+	jump_buffer_timer -= delta
 
 # ------------------ Handle Crouching STARTS ------------------ #
 func handle_crouching():
@@ -195,14 +208,14 @@ func handle_crouching():
 
 
 # ----------------- Handle Dashing STARTS ----------------- #
-func handle_dashing(input_dir, _direction, delta):
+func handle_character_dashing(input_dir, _direction, delta):
 
 	if is_dashing:
 		_direction = (transform.basis * Vector3(dash_vector.x, 0, dash_vector.y)).normalized()
 
 		# Handle dashing sequence
 	for sequence in sequences.values():
-		if key_sequence == sequence:
+		if key_sequence == sequence && !is_dashing:
 			start_dashing(input_dir)
 			key_sequence.clear()
 		elif is_dashing:
