@@ -2,6 +2,9 @@ extends CharacterBody3D
 
 # Objects and Nodes
 @onready var camera_mount = $camera_mount
+@onready var front_view_mount = $front_view_mount
+@onready var camera_main = $camera_mount/camera_main
+@onready var camera_front = $front_view_mount/camera_front
 @onready var animation_player = $visuals/default_character_animations/AnimationPlayer
 @onready var visuals = $visuals
 @onready var ray_cast_3d = $RayCast3D
@@ -14,7 +17,7 @@ extends CharacterBody3D
 var current_speed = 5.0
 
 # Jumping vars
-var jump_velocity = 5
+var jump_velocity = 8
 var jumps = 0
 var jumps_max = 2
 var initial_jump_direction = Vector3.ZERO
@@ -38,13 +41,15 @@ var mouse_sens_horizontal = 0.35
 var mouse_sens_vertical = 0.35
 
 # Dashing vars
-var dash_speed_air = 10.0
+var dash_speed_air = 15.0
 var dash_speed_ground = 40.0
 var dash_timer = 0.0
 var dash_timer_max = 1.0
 var dash_vector = Vector2.ZERO
+var dash_fall_speed = 1.0
 var is_dashing = false
-var has_dashed = false
+var has_air_dashed = false
+var dash_dir = Vector2.ZERO
 
 # Dashing Sequence vars
 var key_sequence = []
@@ -65,6 +70,7 @@ var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 func _ready():
 	# Lock mouse movement to screen
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	camera_main.make_current()
 	
 	# Handle weapon visibility
 	weapon_1.show()
@@ -78,10 +84,10 @@ func _input(event):
 
 	# Handle front view
 	if Input.is_action_just_pressed("front_view") and !hasRotated:
-		camera_mount.rotate_y(-deg_to_rad(180))
+		camera_front.make_current()
 		hasRotated = true
 	elif Input.is_action_just_released("front_view") and hasRotated:
-		camera_mount.rotate_y(-deg_to_rad(180))
+		camera_main.make_current()
 		hasRotated = false
 
 	# Handle mouse movement
@@ -112,35 +118,30 @@ func _input(event):
 		weapon_2.show()
 
 func _physics_process(delta):
+	# Add the gravity.
+	apply_gravity(delta)
+
+	reset_variables()
 
 	# Handle character direction
 	var input_dir = Input.get_vector("move_left", "move_right", "move_forwards", "move_backwards")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
-	# Add the gravity.
-	apply_gravity(delta)
-
-	reset_variables()
-	
 	# Reset scene when character is >= -20 Y-Axis
 	if position.y < -20:
 		get_tree().reload_current_scene()
-
-	# Crouching | PUT THIS INSIDE handle_character_movement() function
-	if Input.is_action_pressed("crouch") && !is_dashing && !is_on_floor():
-		handle_crouching()
 
 	# Standing:
 	elif !ray_cast_3d.is_colliding() && jumps <= 1:
 		handle_character_dashing(input_dir, direction, delta)
 
+	if Input.is_action_just_pressed("action_1"):
+		animation_player.play("melee_attack_idle")
+
 	handle_character_movement(direction)
 	handle_character_jumping(input_dir)
 	handle_jump_buffer(delta)
-
 	move_and_slide()
-
-
 
 
 
@@ -150,7 +151,7 @@ func handle_character_movement(direction):
 	if direction:
 		# Running
 		if !is_dashing:
-			if is_on_floor():
+			if is_on_floor() and animation_player.current_animation != "melee_attack_idle":
 				animation_player.play("melee_running", 0.3)
 				velocity.x = direction.x * current_speed
 				velocity.z = direction.z * current_speed
@@ -159,7 +160,8 @@ func handle_character_movement(direction):
 		# Dashing
 		else:
 			if !is_on_floor():
-				has_dashed = true
+				has_air_dashed = true
+				velocity.y = -dash_fall_speed
 				velocity.x = direction.x * dash_timer * dash_speed_air
 				velocity.z = direction.z * dash_timer * dash_speed_air
 			else:
@@ -168,7 +170,7 @@ func handle_character_movement(direction):
 
 	# Idle
 	else:
-		if is_on_floor() && !is_dashing:
+		if is_on_floor() && !is_dashing and animation_player.current_animation != "melee_attack_idle":
 			animation_player.play("melee_idle")
 		if is_on_floor():
 			velocity.x = move_toward(velocity.x, 0, current_speed)
@@ -177,34 +179,39 @@ func handle_character_movement(direction):
 
 # ----------------- Handle Jumping START ---------- #
 func handle_character_jumping(input_dir):
-	if is_on_floor() or jumps < jumps_max:
-		if jump_buffer_timer > 0 && !is_dashing:
-			jump_buffer_timer = 0
-			velocity.y = jump_velocity
-			jumps += 1
-			animation_player.play("melee_jump")
-			last_input_direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
+		if Input.is_action_just_pressed("jump") && !is_dashing:
+			if !has_air_dashed:
+				print("jumped")
+				jump_buffer_timer = 0
+				velocity.y = jump_velocity
+				jumps += 1
+				animation_player.play("melee_jump")
+
+			elif has_air_dashed && animation_player.current_animation == "melee_attack_idle":
+				print("jump cancel")
+				jump_buffer_timer = 0
+				velocity.y = jump_velocity
+				jumps += 1
+				has_air_dashed = false
+
 			# Handle 2nd jump if no direction is applied
 			if jumps == 1:
 				initial_jump_direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
-			elif jumps == 2 and input_dir == Vector2.ZERO:
-				if initial_jump_direction != Vector3.ZERO && !has_dashed:
+			elif jumps == 2:
+				if initial_jump_direction != Vector3.ZERO && !has_air_dashed:
 					velocity.x = initial_jump_direction.x * jump_velocity
 					velocity.z = initial_jump_direction.z * jump_velocity
-				elif last_input_direction != Vector3.ZERO:
-					velocity.x = last_input_direction.x * jump_velocity
-					velocity.z = last_input_direction.z * jump_velocity
+
+				#elif last_input_direction != Vector3.ZERO:
+					#velocity.x = last_input_direction.x * jump_velocity
+					#velocity.z = last_input_direction.z * jump_velocity
+					#print(last_input_direction)
 
 func handle_jump_buffer(delta):
 	if Input.is_action_just_pressed("jump"):
-		jump_buffer_timer = 0.25
+		jump_buffer_timer = 0.35
 	jump_buffer_timer -= delta
-
-# ------------------ Handle Crouching STARTS ------------------ #
-func handle_crouching():
-	# Add crouching logic here if needed
-	pass
 
 
 # ----------------- Handle Dashing STARTS ----------------- #
@@ -220,11 +227,13 @@ func handle_character_dashing(input_dir, _direction, delta):
 			key_sequence.clear()
 		elif is_dashing:
 			update_dash_timer(delta)
-			if dash_timer <= 0:
+			if dash_timer <= 0.5:
 				end_dashing()
 
 func start_dashing(input_dir):
 	is_dashing = true
+	dash_dir = input_dir
+	last_input_direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	dash_timer = dash_timer_max
 	dash_vector = input_dir
 	print("dash begins")
@@ -242,6 +251,8 @@ func reset_variables():
 	if is_on_floor():
 		jumps = 0
 		initial_jump_direction = Vector3.ZERO
+		last_input_direction = Vector3.ZERO
+		has_air_dashed = false
 
 
 # ----------------- Handle Gravity STARTS ----------------- #

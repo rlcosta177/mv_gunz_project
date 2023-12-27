@@ -95,4 +95,4 @@ front_view={
 
 [physics]
 
-3d/default_gravity=17.0
+3d/default_gravity=25.0
