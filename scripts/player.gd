@@ -151,6 +151,7 @@ func _physics_process(delta):
 	handle_character_movement(direction)
 	handle_character_jumping(input_dir)
 	handle_jump_buffer(delta)
+
 	move_and_slide()
 
 
@@ -160,15 +161,15 @@ func handle_character_movement(direction):
 	# Moving
 	if direction:
 		# Running
-		if !is_dashing:
-			if is_on_floor() and animation_player.current_animation != "melee_attack_idle":
-				animation_player.play("melee_running", 0.3)
-				velocity.x = direction.x * current_speed
-				velocity.z = direction.z * current_speed
-				#visuals.look_at(position + direction)
+		
+		if is_on_floor() and animation_player.current_animation != "melee_attack_idle" && !is_dashing:
+			animation_player.play("melee_running", 0.3)
+			velocity.x = direction.x * current_speed
+			velocity.z = direction.z * current_speed
+			#visuals.look_at(position + direction)
 
 		# Dashing
-		else:
+		elif is_dashing:
 			velocity.x = direction.x * dash_speed
 			velocity.z = direction.z * dash_speed
 			if !is_on_floor():
@@ -209,7 +210,7 @@ func handle_character_jumping(input_dir):
 				if initial_jump_direction != Vector3.ZERO && !has_air_dashed && last_input_direction == Vector3.ZERO:
 					velocity.x = initial_jump_direction.x * jump_velocity
 					velocity.z = initial_jump_direction.z * jump_velocity
-				elif initial_jump_direction != Vector3.ZERO && last_input_direction != Vector3.ZERO:
+				elif initial_jump_direction != Vector3.ZERO && last_input_direction != Vector3.ZERO && !has_air_dashed:
 					velocity.x = last_input_direction.x * jump_velocity
 					velocity.z = last_input_direction.z * jump_velocity
 
@@ -239,14 +240,19 @@ func start_dashing(input_dir):
 	last_input_direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	dash_timer = dash_timer_max
 	dash_vector = input_dir
+
 	print("dash begins")
 	if is_on_floor():
 		print("dashed on the floor")
+
+	# fast fall after dashing
 	if !is_on_floor():
-		velocity.y = 0.1
+		velocity.y = 0.0
 
 func update_dash_timer(delta):
 	dash_timer -= delta
+	if is_on_floor():
+		print("on floor")
 
 func end_dashing():
 	is_dashing = false
